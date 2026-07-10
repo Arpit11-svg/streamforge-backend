@@ -29,7 +29,14 @@ const userSchema = new Schema(
             type: String, //cloudinary URL
             required: [true, "Avatar is required"],
         },
+        avatarPublicId: {//for deleting avatar from cloudinary
+            type: String,
+            required: true,
+        },
         coverImage: {
+            type: String,
+        },
+        coverImagePublicId:{
             type: String,
         },
         watchHistory: [

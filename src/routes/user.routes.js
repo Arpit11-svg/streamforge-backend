@@ -29,15 +29,15 @@ router.route("/refresh-token").post(refreshAccessToken)
 
 router.route("/change-password").post(verifyJWT, changeCurrentPassword);
 
-router.router("/get-user").post(verifyJWT, getCurrentUser)
+router.route("/get-user").post(verifyJWT, getCurrentUser)
 
 router.route("/update-user").post(verifyJWT, updateAccountDetails)
 
 router.route("/update-avatar").post(
-    upload.field(
+    upload.fields(
         [
             {
-                name: avatar,
+                name: "avatar",
                 maxCount: 1
             }
         ]
@@ -46,10 +46,10 @@ router.route("/update-avatar").post(
 )
 
 router.route("/update-cover-image").post(
-    upload.field(
+    upload.fields(
         [
             {
-                name: coverImage,
+                name: "coverImage",
                 maxCount: 1
             }
         ]
