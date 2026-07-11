@@ -52,14 +52,13 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!avatar) {
         throw new ApiError(400, "Avatar is required.")
     }
-    
 
     const user = await User.create({
         fullName,
         avatar: avatar.url,
         avatarPublicId: avatar.public_id,
         coverImage: coverImage?.url || "",
-        coverImagePublicId: coverImage?.public_id|| "",
+        coverImagePublicId: coverImage?.public_id || "",
         email,
         password,
         username: username.toLowerCase(),
@@ -260,6 +259,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Error while uploading avatar to cloudinary.")
     }
 
+
     await deleteFromCloudinary(req.user?.avatarPublicId);
 
     const user = await User.findByIdAndUpdate(
@@ -310,6 +310,80 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         .status(200, user, "Cover image updated successfully.")
 })
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "username is missing")
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",// users subscribed my channel
+                as: "subscribers",
+            }
+        },
+        {
+            // Which channels has "username" subscribed to?
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo",
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                channelsSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        // Is 2 inside [2,3] ?
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false,
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1,
+
+            }
+        },
+    ])
+
+    if (!channel?.length) {
+        throw new ApiError(404, "channel does not exists")
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, channel[0], "User channel fetched successfully.")
+        )
+})
+
 export {
     registerUser,
     loginUser,
@@ -320,4 +394,5 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
+    getUserChannelProfile,
 };
