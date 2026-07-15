@@ -1,19 +1,31 @@
-import mongoose, {Schema} from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 
 const videoSchema = new Schema(
     {
         videoFile: {
-            type: String, //cloudinary URL
-            required: [true, "Video is required"],
+            url: {
+                type: String,
+                required: true,
+            },
+            public_id: {
+                type: String,
+                required: true,
+            }
         },
         thumbnail: {
-            type: String, //cloudinary URL
-            required: true,
+            url: {
+                type: String,
+                required: true
+            },
+            public_id: {
+                type: String,
+                required: true
+            }
         },
         title: {
-            type: String, 
+            type: String,
             required: true,
         },
         description: {
