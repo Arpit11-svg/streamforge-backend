@@ -160,10 +160,10 @@ const getVideoById = asyncHandler(async (req, res) => {
     }
 
     const video = await Video.findById(videoId)
-    .populate("owner", "username fullName avatar");
+        .populate("owner", "username fullName avatar");
 
-    if (video.length===0) {
-        throw new ApiError(400, "Video not found for given user given videoId")
+    if (!video) {
+        throw new ApiError(400, "Video not found for given videoId")
     }
 
     return res
@@ -174,8 +174,36 @@ const getVideoById = asyncHandler(async (req, res) => {
 
 })
 
+const deleteVideo = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    if (!videoId?.trim()) {
+        throw new ApiError(400, "videoId is missing");
+    }
+
+    const video = await Video.findById(videoId);
+
+    if (!video) {
+        throw new ApiError(404, "Video not found");
+    }
+
+    if (!video.owner.equals(req.user._id)) {
+        throw new ApiError(403, "You are not authorized to delete this video");
+    }
+
+    await deleteFromCloudinary(video.videoFile.public_id);
+    await deleteFromCloudinary(video.thumbnail.public_id);
+
+    await Video.findByIdAndDelete(videoId);
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Video deleted successfully")
+    );
+});
+
 export {
     publishVideo,
     getAllVideos,
     getVideoById,
+    deleteVideo,
 }
