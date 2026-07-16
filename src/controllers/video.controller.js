@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Video } from "../models/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -72,6 +73,84 @@ const publishVideo = asyncHandler(async (req, res) => {
     );
 })
 
+const getAllVideos = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, query, sortBy = "createdAt", sortType = "desc", userId } = req.query
+
+    const match = {};
+
+    if (query) {
+        match.$or = [
+            {
+                title: {
+                    $regex: query,
+                    $option: i, //ignore lower/uppercase
+                },
+            },
+            {
+                description: {
+                    $regex: query,
+                    $options: "i",
+                },
+            }
+        ]
+    }
+
+    if (userId) {
+        match.owner = new mongoose.Types.ObjectId(userId);
+    }
+
+    const aggregate = Video.aggregate([
+        {
+            $match: match,
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                owner: {
+                    $first: "$owner",//first element of array owner
+                },
+            },
+        },
+        {
+            $sort: {
+                [sortBy]: sortType === "asc" ? 1 : -1,
+            },
+        },
+    ]);
+
+    const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+    };
+
+    const videos = await Video.aggregatePaginate(aggregate, options);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            videos,
+            "Videos fetched successfully"
+        )
+    );
+})
+
 export {
-    publishVideo
+    publishVideo,
+    getAllVideos,
 }
