@@ -150,7 +150,32 @@ const getAllVideos = asyncHandler(async (req, res) => {
     );
 })
 
+const getVideoById = asyncHandler(async (req, res) => {
+    const { videoId } = req.params
+
+    if (!videoId?.trim()) {
+        return new ApiError(
+            400, "videoId is missing"
+        )
+    }
+
+    const video = await Video.findById(videoId)
+    .populate("owner", "username fullName avatar");
+
+    if (video.length===0) {
+        throw new ApiError(400, "Video not found for given user given videoId")
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, video, "Video fetched successfully")
+        )
+
+})
+
 export {
     publishVideo,
     getAllVideos,
+    getVideoById,
 }
