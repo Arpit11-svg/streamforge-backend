@@ -100,6 +100,10 @@ const getAllVideos = asyncHandler(async (req, res) => {
         match.owner = new mongoose.Types.ObjectId(userId);
     }
 
+    if (!req.user || !req.user._id.equals(ownerId)) {
+        match.isPublished = true;
+    }
+
     const aggregate = Video.aggregate([
         {
             $match: match,
@@ -140,6 +144,9 @@ const getAllVideos = asyncHandler(async (req, res) => {
         limit: parseInt(limit),
     };
 
+    const isOwner =
+        req.user && video.owner.equals(req.user._id);
+
     const videos = await Video.aggregatePaginate(aggregate, options);
 
     return res.status(200).json(
@@ -158,6 +165,13 @@ const getVideoById = asyncHandler(async (req, res) => {
         return new ApiError(
             400, "videoId is missing"
         )
+    }
+
+    const isOwner =
+        req.user && video.owner.equals(req.user._id);
+
+    if (!video.isPublished && !isOwner) {
+        throw new ApiError(403, "Video is not published");
     }
 
     const existing = await User.findOne({
@@ -306,10 +320,40 @@ const updateVideo = asyncHandler(async (req, res) => {
         )
 })
 
+const togglePublishStatus = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    if (!videoId?.trim()) {
+        throw new ApiError(400, "Video ID is required");
+    }
+
+    const video = await Video.findById(videoId);
+
+    if (!video) {
+        throw new ApiError(404, "Video not found");
+    }
+
+    if (!video.owner.equals(req.user._id)) {
+        throw new ApiError(403, "You are not authorized to toggle the status of this video");
+    }
+
+    video.isPublished = !video.isPublished;
+    await video.save({ validateBeforeSave: false });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            video,
+            `Video ${video.isPublished ? "published" : "unpublished"} successfully`
+        )
+    );
+});
+
 export {
     publishVideo,
     getAllVideos,
     getVideoById,
     deleteVideo,
     updateVideo,
+    togglePublishStatus,
 }
