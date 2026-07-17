@@ -36,13 +36,19 @@ const userSchema = new Schema(
         coverImage: {
             type: String,
         },
-        coverImagePublicId:{
+        coverImagePublicId: {
             type: String,
         },
         watchHistory: [
             {
-                type: Schema.Types.ObjectId,
-                ref: "Video",
+                video: {
+                    type: Schema.Types.ObjectId,
+                    ref: "Video",
+                },
+                watchedAt: {
+                    type: Date,
+                    default: Date.now
+                }
             }
         ],
         password: {

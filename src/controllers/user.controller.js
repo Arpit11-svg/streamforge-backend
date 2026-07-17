@@ -387,18 +387,26 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
 const getWatchHistory = asyncHandler(async (req, res) => {
 
-    const user = await User.aggregate([
+    const history = await User.aggregate([
         {
             $match: {
                 _id: new mongoose.Types.ObjectId(req.user._id)
             }
         },
         {
+            $unwind: "$watchHistory"
+        },
+        {
+            $sort: {
+                "watchHistory.watchedAt": -1
+            }
+        },
+        {
             $lookup: {
                 from: "videos",
-                localField: "watchHistory",
+                localField: "watchHistory.video",
                 foreignField: "_id",
-                as: "watchHistory",
+                as: "video",
                 pipeline: [// we have videos, now we have to, go to users model for accessing the owner of videos
                     {
                         $lookup: {
@@ -427,14 +435,27 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                 ]
             }
         },
-    ])
+        {
+            $addFields: {
+                video: {
+                    $first: "$video"
+                }
+            }
+        },
+        {
+            $project: {
+                watchedAt: "$watchHistory.watchedAt",
+                video: "$video"
+            }
+        }
+    ]);
 
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                user[0].watchHistory,
+                history,
                 "Watch history fetched successfully."
             )
         )

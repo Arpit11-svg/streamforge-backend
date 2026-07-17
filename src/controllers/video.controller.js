@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { User } from "../models/user.model.js";
 
 const publishVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body
@@ -157,6 +158,44 @@ const getVideoById = asyncHandler(async (req, res) => {
         return new ApiError(
             400, "videoId is missing"
         )
+    }
+
+    const existing = await User.findOne({
+        _id: req.user._id,
+        "watchHistory.video": videoId,
+    })
+
+    if (existing) {
+        await User.updateOne(
+            {
+                _id: req.user._id,
+                "watchHistory.video": videoId,
+            },
+            {
+                $set: {
+                    "watchHistory.$.watchedAt": new Date()
+                }
+            }
+        );
+    }
+    else {
+        await Video.findByIdAndUpdate(videoId, {
+            $inc: {
+                views: 1
+            }
+        });
+
+        await User.findByIdAndUpdate(
+            req.user._id,
+            {
+                $push: {
+                    watchHistory: {
+                        video: videoId,
+                        watchedAt: new Date()
+                    }
+                },
+            }
+        );
     }
 
     const video = await Video.findById(videoId)
