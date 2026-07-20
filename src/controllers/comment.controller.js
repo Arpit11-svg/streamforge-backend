@@ -52,7 +52,36 @@ const deleteComment = asyncHandler(async (req, res) => {
     );
 })
 
+const updateComment = asyncHandler(async (req, res) => {
+    let { content } = req.body
+    const { commentId } = req.params
+
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
+        throw new ApiError(404, "Comment not found")
+    }
+
+    if (!comment.owner.equals(req.user._id)) {
+        throw new ApiError(403, "You are unauthorized to update this comment");
+    }
+
+    if (!content || content.trim() === "") {
+        content = comment.content
+    }
+
+    comment.content = content.trim()
+    await comment.save();
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            comment,
+            "Comment updated successfully"
+        )
+    );
+})
+
 export {
     addComment,
     deleteComment,
+    updateComment,
 }
