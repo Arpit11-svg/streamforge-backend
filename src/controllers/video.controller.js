@@ -95,14 +95,12 @@ const getAllVideos = asyncHandler(async (req, res) => {
             }
         ]
     }
-    
+
     if (userId) {
         match.owner = new mongoose.Types.ObjectId(userId);
     }
 
-    if (!req.user || !req.user._id.equals(userId)) {
-        match.isPublished = true;
-    }
+    match.isPublished = true;
 
     const aggregate = Video.aggregate([
         {
@@ -163,6 +161,14 @@ const getVideoById = asyncHandler(async (req, res) => {
         )
     }
 
+    const video = await Video.findById(videoId)
+        .populate("owner", "username fullName avatar");
+
+
+    if (!video) {
+        throw new ApiError(404, "Video not found")
+    }
+
     const isOwner =
         req.user && video.owner.equals(req.user._id);
 
@@ -207,20 +213,38 @@ const getVideoById = asyncHandler(async (req, res) => {
             }
         );
     }
-
-    const video = await Video.findById(videoId)
-        .populate("owner", "username fullName avatar");
-
-    if (!video) {
-        throw new ApiError(400, "Video not found for given videoId")
-    }
-
     return res
         .status(200)
         .json(
             new ApiResponse(200, video, "Video fetched successfully")
         )
 
+})
+
+const getMyVideos = asyncHandler(async (req, res) => {
+
+    const myVideos = await Video.aggregate([
+
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1
+            }
+        }
+    ]);
+
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            myVideos,
+            "My videos fetched successfully."
+        )
+    )
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
@@ -349,6 +373,7 @@ export {
     publishVideo,
     getAllVideos,
     getVideoById,
+    getMyVideos,
     deleteVideo,
     updateVideo,
     togglePublishStatus,
