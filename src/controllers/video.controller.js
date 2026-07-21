@@ -84,7 +84,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
             {
                 title: {
                     $regex: query,
-                    $option: i, //ignore lower/uppercase
+                    $option: "i", //ignore lower/uppercase
                 },
             },
             {
@@ -95,12 +95,12 @@ const getAllVideos = asyncHandler(async (req, res) => {
             }
         ]
     }
-
+    
     if (userId) {
         match.owner = new mongoose.Types.ObjectId(userId);
     }
 
-    if (!req.user || !req.user._id.equals(ownerId)) {
+    if (!req.user || !req.user._id.equals(userId)) {
         match.isPublished = true;
     }
 
@@ -143,10 +143,6 @@ const getAllVideos = asyncHandler(async (req, res) => {
         page: parseInt(page),
         limit: parseInt(limit),
     };
-
-    const isOwner =
-        req.user && video.owner.equals(req.user._id);
-
     const videos = await Video.aggregatePaginate(aggregate, options);
 
     return res.status(200).json(

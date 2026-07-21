@@ -1,6 +1,9 @@
-import { ApiError } from "../utils/ApiError";
-import { Comment } from "../models/comment.model";
-import { asyncHandler } from "../utils/asyncHandler";
+import { ApiError } from "../utils/ApiError.js";
+import { Comment } from "../models/comment.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { Video } from "../models/video.model.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import mongoose from "mongoose";
 
 const addComment = asyncHandler(async (req, res) => {
     const { content } = req.body;
@@ -80,8 +83,64 @@ const updateComment = asyncHandler(async (req, res) => {
     );
 })
 
+const getVideoComments = asyncHandler(async (req, res) => {
+    const { videoId } = req.params
+
+    const video = await Video.findById(videoId)
+    if (!video) {
+        throw new ApiError(404, "Video not found")
+    }
+
+    const comments = await Comment.aggregate([
+        {
+            $match: {
+                video: new mongoose.Types.ObjectId(videoId)
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,
+                            username: 1,
+                            avatar: 1,
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                owner: {
+                    $first: "$owner",
+                }
+            }
+        }
+    ])
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            comments,
+            `All Comments fetched successfully for video titled: ${video.title}`
+        )
+    )
+
+})
+
 export {
     addComment,
     deleteComment,
     updateComment,
+    getVideoComments,
 }
