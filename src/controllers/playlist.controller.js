@@ -4,6 +4,7 @@ import { Video } from "../models/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { User } from "../models/user.model.js";
 
 const createPlaylist = asyncHandler(async (req, res) => {
     const { name, description } = req.body
@@ -149,9 +150,101 @@ const updatePlaylist = asyncHandler(async (req, res) => {
     )
 })
 
+const getPlaylistById = asyncHandler(async (req, res) => {
+    const { playlistId } = req.params
+
+    const playlist = await Playlist.findById(playlistId).populate("videos").populate("owner", "username fullName avatar");
+
+    if (!playlist) {
+        throw new ApiError(404, "PlayList not found")
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            playlist,
+            "PlayList fetched successfuly"
+        )
+    )
+
+})
+
+const getUserPlaylists = asyncHandler(async (req, res) => {
+    const { userId } = req.params
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new ApiError(400, "Invalid user id");
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    const playlists = await Playlist.aggregate([
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(userId)
+            }
+        },
+        {
+            $sort: {
+                createdAt: -1
+            }
+        },
+        {
+            $addFields: {
+                videoCount: {
+                    $size: "$videos"
+                },
+                firstVideo: {
+                    $arrayElemAt: ["$videos", 0]
+                }
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "firstVideo",
+                foreignField: "_id",
+                as: "thumbnailVideo",
+            }
+        },
+        {
+            $addFields: {
+                thumbnail: {
+                    $arrayElemAt: ["$thumbnailVideo.thumbnail", 0]
+                }
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                name: 1,
+                description: 1,
+                videoCount: 1,
+                thumbnail: 1,
+                createdAt: 1,
+            }
+        }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                playlists,
+                totalPlaylists: playlists.length
+            },
+            "Playlists fetched successfully")
+    )
+})
+
 export {
     createPlaylist,
     addVideoToPlaylist,
     deletePlaylist,
     updatePlaylist,
+    getPlaylistById,
+    getUserPlaylists,
 }
