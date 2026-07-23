@@ -240,6 +240,37 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
     )
 })
 
+const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
+    const { videoId, playlistId } = req.params
+
+    const playlist = await Playlist.findById(playlistId);
+    if (!playlist) {
+        throw new ApiError(404, "Playlist not found")
+    }
+
+    if (!playlist.owner.equals(req.user._id)) {
+        throw new ApiError(403, "You are not authorized to modify this playlist");
+    }
+
+    const videoExists = playlist.videos.some(id => id.equals(videoId));
+
+    if (!videoExists) {
+        throw new ApiError(404, "Video not found in playlist");
+    }
+
+    playlist.videos.remove(videoId);
+
+    await playlist.save({ validateBeforeSave: false });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {},
+            "Video removed from playlist successfully"
+        )
+    )
+})
+
 export {
     createPlaylist,
     addVideoToPlaylist,
@@ -247,4 +278,5 @@ export {
     updatePlaylist,
     getPlaylistById,
     getUserPlaylists,
+    removeVideoFromPlaylist,
 }
