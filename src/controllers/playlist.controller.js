@@ -75,7 +75,83 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     )
 })
 
+const deletePlaylist = asyncHandler(async (req, res) => {
+    const { playlistId } = req.params
+
+    if (!mongoose.Types.ObjectId.isValid(playlistId)) {
+        throw new ApiError(400, "Invalid playlist id");
+    }
+
+    const playlist = await Playlist.findById(playlistId);
+    if (!playlist) {
+        throw new ApiError(404, "Playlist not found")
+    }
+
+    if (!playlist.owner.equals(req.user._id)) {
+        throw new ApiError(403, "You are not authorized to delete this playlist")
+    }
+
+    await playlist.deleteOne();
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {},
+            "Playlist deleted successfully"
+        )
+    )
+})
+
+const updatePlaylist = asyncHandler(async (req, res) => {
+    const { playlistId } = req.params
+    const { name, description } = req.body
+
+    let playlist = await Playlist.findById(playlistId);
+    if (!playlist) {
+        throw new ApiError(404, "Playlist not found")
+    }
+
+    if (!playlist.owner.equals(req.user._id)) {
+        throw new ApiError(403, "You are not authorized to update this playlist")
+    }
+
+    const updateFields = {};
+
+    if (name?.trim()) {
+        updateFields.name = name.trim();
+    }
+
+    if (description?.trim()) {
+        updateFields.description = description.trim();
+    }
+
+    if (Object.keys(updateFields).length === 0) {
+        throw new ApiError(400, "Provide at least one field to update");
+    }
+
+    playlist = await Playlist.findByIdAndUpdate(
+        playlistId,
+        {
+            $set: updateFields
+        },
+        {
+            returnDocument: "after",
+            runValidators: true,
+        }
+    )
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            playlist,
+            "Playlist updated successfully"
+        )
+    )
+})
+
 export {
     createPlaylist,
     addVideoToPlaylist,
+    deletePlaylist,
+    updatePlaylist,
 }
