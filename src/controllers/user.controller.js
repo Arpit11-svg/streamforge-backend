@@ -56,10 +56,14 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const user = await User.create({
         fullName,
-        avatar: avatar.url,
-        avatarPublicId: avatar.public_id,
-        coverImage: coverImage?.url || "",
-        coverImagePublicId: coverImage?.public_id || "",
+        avatar: {
+            url: avatar.url,
+            publicId: avatar.public_id,
+        },
+        coverImage: {
+            url: coverImage?.url || "",
+            publicId: coverImage?.public_id || "",
+        },
         email,
         password,
         username: username.toLowerCase(),
@@ -261,14 +265,16 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     }
 
 
-    await deleteFromCloudinary(req.user?.avatarPublicId);
+    await deleteFromCloudinary(req.user?.avatar.publicId);
 
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set: {
-                avatar: avatar.url,
-                avatarPublicId: avatar.public_id,
+                avatar: {
+                    url: avatar.url,
+                    publicId: avatar.public_id
+                }
             }
         },
         {
@@ -293,13 +299,15 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Error while uploading cover image to cloudinary.")
     }
 
-    await deleteFromCloudinary(req.user?.coverImagePublicId);
+    await deleteFromCloudinary(req.user?.coverImage.publicId);
     const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set: {
-                coverImage: coverImage.url,
-                coverImagePublicId: coverImage.public_id,
+                coverImage: {
+                    url: coverImage.url,
+                    publicId: coverImage.public_id
+                }
             }
         },
         {

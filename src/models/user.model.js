@@ -26,18 +26,18 @@ const userSchema = new Schema(
             index: true
         },
         avatar: {
-            type: String, //cloudinary URL
-            required: [true, "Avatar is required"],
-        },
-        avatarPublicId: {//for deleting avatar from cloudinary
-            type: String,
-            required: true,
+            url: {
+                type: String,
+                required: true,
+            },
+            publicId: {
+                type: String,
+                required: true,
+            },
         },
         coverImage: {
-            type: String,
-        },
-        coverImagePublicId: {
-            type: String,
+            url: String,
+            publicId: String,
         },
         watchHistory: [
             {
