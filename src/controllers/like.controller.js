@@ -147,9 +147,25 @@ const getLikedVideos = asyncHandler(async (req, res) => {
     )
 })
 
+const getVideoLikes = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+    const videoLikes = await Like.countDocuments({
+        video: videoId
+    });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { likes: videoLikes },
+            "Video likes fetched successfully"
+        )
+    )
+})
+
 export {
     toggleVideoLike,
     toggleCommentLike,
     toggleTweetLike,
     getLikedVideos,
+    getVideoLikes,
 }
