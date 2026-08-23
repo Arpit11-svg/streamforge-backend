@@ -135,6 +135,41 @@ const getLikedVideos = asyncHandler(async (req, res) => {
                     $first: "$video",
                 }
             }
+        },
+        {
+            $match: {
+                video: { $ne: null }
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "video.owner",
+                foreignField: "_id",
+                as: "videoOwner",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1,
+                        },
+                    },
+                ],
+            }
+        },
+        {
+            $addFields: {
+                "video.owner": {
+                    $first: "$videoOwner",
+                }
+            }
+        },
+        {
+            $project: {
+                videoOwner: 0
+            }
         }
     ])
 
@@ -149,14 +184,21 @@ const getLikedVideos = asyncHandler(async (req, res) => {
 
 const getVideoLikes = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
-    const videoLikes = await Like.countDocuments({
-        video: videoId
-    });
+
+    const [videoLikes, likedByUser] = await Promise.all([
+        Like.countDocuments({
+            video: videoId
+        }),
+        Like.exists({
+            likedBy: req.user._id,
+            video: videoId
+        })
+    ]);
 
     return res.status(200).json(
         new ApiResponse(
             200,
-            { likes: videoLikes },
+            { likes: videoLikes, isLiked: Boolean(likedByUser) },
             "Video likes fetched successfully"
         )
     )
