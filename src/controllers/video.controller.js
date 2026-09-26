@@ -5,6 +5,9 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { User } from "../models/user.model.js";
+import { Like } from "../models/like.model.js";
+import { Comment } from "../models/comment.model.js";
+import { Playlist } from "../models/playlist.model.js";
 
 const publishVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body
@@ -84,7 +87,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
             {
                 title: {
                     $regex: query,
-                    $option: "i", //ignore lower/uppercase
+                    $options: "i", //ignore lower/uppercase
                 },
             },
             {
@@ -156,7 +159,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 
     if (!videoId?.trim()) {
-        return new ApiError(
+        throw new ApiError(
             400, "videoId is missing"
         )
     }
@@ -228,24 +231,87 @@ const deleteVideo = asyncHandler(async (req, res) => {
         throw new ApiError(400, "videoId is missing");
     }
 
-    const video = await Video.findById(videoId);
+    if (!mongoose.isValidObjectId(videoId)) throw new ApiError(400, "Invalid video id");
 
-    if (!video) {
-        throw new ApiError(404, "Video not found");
+    const session = await mongoose.startSession();
+
+    try {
+        session.startTransaction();
+
+        const video = await Video.findById(videoId).session(session);
+
+        if (!video) {
+            throw new ApiError(404, "Video not found");
+        }
+
+        if (!video.owner.equals(req.user._id)) {
+            throw new ApiError(
+                403,
+                "You are not authorized to delete this video"
+            );
+        }
+
+        const commentIds = await Comment
+            .find({ video: videoId })
+            .distinct("_id")
+            .session(session);
+
+        await Like.deleteMany({
+            $or: [
+                { video: videoId },
+                { comment: { $in: commentIds } }
+            ]
+        }).session(session);
+
+        await Comment.deleteMany({
+            video: videoId
+        }).session(session);
+
+        await Playlist.updateMany(
+            { videos: videoId },
+            { $pull: { videos: videoId } }
+        ).session(session);
+
+        await User.updateMany(
+            { "watchHistory.video": videoId },
+            { $pull: { watchHistory: { video: videoId } } }
+        ).session(session);
+
+        await Video.findByIdAndDelete(videoId).session(session);
+
+
+        //  Commit MongoDB transaction
+        await session.commitTransaction();
+
+        await Promise.all([
+            deleteFromCloudinary(
+                video.videoFile.public_id,
+                "video"
+            ),
+            deleteFromCloudinary(
+                video.thumbnail.public_id,
+                "image"
+            )
+        ]);
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {},
+                "Video deleted successfully"
+            )
+        );
+
+    } catch (error) {
+
+        // Rollback MongoDB changes only if the transaction is still active
+        if (session.inTransaction()) await session.abortTransaction();
+
+        throw error;
+
+    } finally {
+        await session.endSession();
     }
-
-    if (!video.owner.equals(req.user._id)) {
-        throw new ApiError(403, "You are not authorized to delete this video");
-    }
-
-    await deleteFromCloudinary(video.videoFile.public_id, "video");
-    await deleteFromCloudinary(video.thumbnail.public_id, "image");
-
-    await Video.findByIdAndDelete(videoId);
-
-    return res.status(200).json(
-        new ApiResponse(200, {}, "Video deleted successfully")
-    );
 });
 
 const updateVideo = asyncHandler(async (req, res) => {

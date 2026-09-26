@@ -4,6 +4,8 @@ import { DB_NAME } from "../constants.js";
 const connectDB = async () => {
     try {
         const uri = process.env.MONGODB_URI.replace('/?', `/${DB_NAME}?`);
+        // mongoose.set("debug", true);
+
         const connectionInstance = await mongoose.connect(uri);
         console.log(`\n MongoDB Connected Successfully!`);
 

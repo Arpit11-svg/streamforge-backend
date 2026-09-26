@@ -17,7 +17,7 @@ const createTweet = asyncHandler(async (req, res) => {
         owner: req.user._id
     });
 
-    await tweet.populate("owner", "username fullname avatar");
+    await tweet.populate("owner", "username fullName avatar");
 
     return res.status(201).json(
         new ApiResponse(
@@ -34,6 +34,10 @@ const deleteTweet = asyncHandler(async (req, res) => {
     const tweet = await Tweet.findById(tweetId);
     if (!tweet) {
         throw new ApiError(404, "Tweet not found")
+    }
+
+    if (tweet.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "You are not allowed to delete this tweet");
     }
 
     await Tweet.findByIdAndDelete(tweetId);

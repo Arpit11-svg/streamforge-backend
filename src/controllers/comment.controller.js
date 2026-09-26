@@ -26,7 +26,7 @@ const addComment = asyncHandler(async (req, res) => {
     });
 
     const createdComment = await Comment.findById(comment._id)
-        .populate("owner", "username fullname avatar");
+        .populate("owner", "username fullName avatar");
 
     return res.status(201).json(
         new ApiResponse(

@@ -192,7 +192,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             httpOnly: true,
             // secure: true
         }
-        const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id);
+        const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshToken(user._id);
 
         return res.status(200)
             .cookie("accessToken", accessToken, options)
@@ -234,8 +234,8 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(
-            200, 
-            req.user, 
+            200,
+            req.user,
             "Current user fetched successfully."))
 })
 
@@ -247,7 +247,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findByIdAndUpdate(
-        user.req?._id,
+        req.user?._id,
         {
             $set: {
                 fullName: fullName,
@@ -298,7 +298,8 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     ).select("-password -refreshToken")
 
     return res
-        .status(200, user, "Avatar updated successfully.")
+        .status(200)
+        .json(new ApiResponse(200, user, "Avatar updated successfully."));
 })
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
